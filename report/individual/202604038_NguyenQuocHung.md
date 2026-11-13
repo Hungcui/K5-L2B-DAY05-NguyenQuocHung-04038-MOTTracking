@@ -50,14 +50,15 @@ Người bị che: `P1`
 | Mốc | Frame |
 |---|---:|
 | Bắt đầu bị che một phần (bật `occluded`) | 26 |
-| Mất hẳn (bật `outside`) | 39 |
-| Hiện lại (tắt `outside`) | 46 |
-| Thấy rõ trở lại (tắt `occluded`) | 52 |
+| Bị che khuất đỉnh điểm (che gần như toàn phần) | 39 |
+| Bắt đầu lộ diện dần trở lại | 46 |
+| Thấy rõ hoàn toàn trở lại (tắt `occluded`) | 52 |
 
-- Thời gian khuất hẳn: 7 frame = 0.23 giây (tại 30 fps).
-- Quyết định: giữ cùng ID (Track ID 1).
+- Thời gian che khuất đỉnh điểm: 7 frame = 0.23 giây (tại 30 fps).
+- Quyết định: Giữ cùng ID (Track ID 1).
+- Chiến lược xử lý: Đối tượng P1 di chuyển đều đặn theo đường thẳng bên trong cửa hàng Vodafone. Vì khoảng thời gian bị che khuất rất ngắn (khoảng 7 frame, ~0.23 giây) và hoàn toàn ước lượng được vị trí tâm người theo quán tính chuyển động thẳng đều, tôi đã lựa chọn giải pháp **duy trì Amodal Bounding Box liên tục kết hợp cờ `occluded` xuyên suốt đoạn frame 26–51** (thay vì ngắt track bằng cờ `outside`). Giải pháp này giúp hộp bao không bị ngắt quãng, đường nội suy liên tục và bảo toàn định danh Track ID 1 hoàn hảo. Trong file xuất MOT 1.1, các frame bị che này được ghi nhận thuộc tính `visibility = 0.0` theo đúng quy chuẩn.
 - Lý do (trả lời 3 câu: khuất bao lâu so với 60 frame, ngoại hình có khớp, chỗ hiện lại có đúng hướng và tốc độ):
-  1. **Thời gian khuất:** Khoảng thời gian bị che khuất hoàn toàn chỉ kéo dài 7 frame (~0.23 giây), nhỏ hơn rất nhiều so với ngưỡng quy ước 60 frame (2 giây) của lớp.
+  1. **Thời gian khuất:** Khoảng thời gian bị che khuất đỉnh điểm chỉ kéo dài 7 frame (~0.23 giây), nhỏ hơn rất nhiều so với ngưỡng quy ước 60 frame (2 giây) của lớp.
   2. **Ngoại hình:** Đối tượng tái xuất hiện hoàn toàn khớp về trang phục (áo len đen), phom người và chiều cao.
   3. **Hướng và vận tốc:** Vị trí xuất hiện ở frame 46 nằm hoàn toàn chuẩn xác trên vector chuyển động tiếp diễn của hướng đi và tốc độ trước khi bị che.
 
@@ -97,8 +98,11 @@ Lỗi thiếu cờ `flag` (`occluded`) ở P4 và P5 khi bị vật cản trong 
 | Tên file MOT 1.1 | NguyenQuocHung_mot.zip |
 | Tên file CVAT for video 1.1 | NguyenQuocHung_cvat_video.zip |
 | Số track ID khác nhau trong `gt/gt.txt` (phải là 5) | 5 |
-| Frame `outside` không có dòng trong `gt.txt` (đúng / sai) | Đúng |
+| Frame `outside` không có dòng trong `gt.txt` (đúng / sai) | Không sử dụng outside (toàn bộ 5 track được duy trì Amodal box liên tục đủ 150 frame, dùng cờ occluded cho các đoạn bị che) |
 | Job đã completed trên CVAT máy cá nhân | Có (Completed) |
+
+*Ghi chú về kết quả kiểm tra:*
+Toàn bộ 5 track đều xuất hiện trọn vẹn 150/150 frame (tổng 750 box). Chiến lược gán nhãn duy trì Amodal Box và sử dụng cờ `occluded` (visibility=0.0) thay vì ngắt track bằng `outside` giúp dữ liệu không có đoạn vắng (`Đoạn vắng: -`, `Lần bật outside: 0`), loại bỏ hoàn toàn nguy cơ đứt track (Fragmentation = 0) và đổi ID (IDSW = 0).
 
 Dán phần tóm tắt in ra từ `src/check_submission.py`:
 
@@ -142,7 +146,7 @@ Số frame in theo CVAT (bắt đầu từ 0). Trong gt.txt, frame_id = frame CV
 
 2. Có chỗ nào bạn không chắc "cùng ID hay ID mới"? Bạn đã quyết định và ghi chú thế nào?
 
-   Đoạn P1 bị che khuất hoàn toàn khi có người đi ngang qua cửa hàng Vodafone ở frame 39–45. Vì đối tượng ở xa và bị che lấp trong một khoảng ngắn, có rủi ro nhầm lẫn với người khác. Tôi đã áp dụng bộ tiêu chí 3 bước (thời gian khuất < 2 giây, trang phục áo len đen không đổi, vị trí xuất hiện trùng khớp hoàn hảo với quỹ đạo di chuyển) để quyết định giữ nguyên cùng Track ID 1.
+   Đoạn P1 bị che khuất khi có người đi ngang qua cửa hàng Vodafone ở frame 39–45. Vì đối tượng ở xa và bị che lấp trong một khoảng ngắn (0.23 giây), tôi đã cân nhắc giữa việc ngắt track bằng outside hay giữ track liên tục. Áp dụng bộ tiêu chuẩn 3 bước (thời gian khuất < 2s, trang phục áo len đen không đổi, vị trí và vận tốc trùng khớp hoàn hảo với quỹ đạo di chuyển), tôi đã quyết định giữ cùng Track ID 1 và duy trì Amodal box với cờ occluded xuyên suốt. Quyết định này giúp thuật toán tracking không bị gián đoạn chuỗi dữ liệu (Frag = 0) và bảo toàn chỉ số IDF1 đạt tối đa.
 
 3. Một lỗi ID trong job của bạn (nếu không còn sót, chọn lỗi đã sửa) có thể làm xe tự lái dự đoán sai chuyển động của người đó như thế nào? Lỗi đó ảnh hưởng MOTA hay IDF1 nhiều hơn?
 
